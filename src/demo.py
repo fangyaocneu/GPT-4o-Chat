@@ -29,6 +29,7 @@ class GradioClient:
         self.ws_app = None
         self.user_speech_stopped = False
         self.model_speech_stopped = False
+        self.connected = False
 
     def connect_to_openai(self):
         self.ws_app = WebSocketApp(
@@ -71,11 +72,14 @@ class GradioClient:
                 "max_response_output_tokens": "inf"
             }
         }))
+        self.connected = True
 
     def on_error(self, ws_app, error):
+        self.connected = False
         logging.info(f'Error: {error}')
 
     def on_close(self, ws_app, code, error):
+        self.connected = False
         logging.info(f'Closing code: {code}, error:{error}')
 
     def on_message(self, ws_app, message):
@@ -95,22 +99,9 @@ class GradioClient:
         except Exception as e:
             logging.info(f'Error processing message: {e}')
 
-    def send_audio(self, audio_data:bytes):
-        encoded_chunk = base64.b64encode(audio_data).decode()
-        event = {
-            "type": "conversation.item.create",
-            "item": {
-                "type": "message",
-                "role": "user",
-                "content": [{
-                    "type": "input_audio",
-                    "audio": encoded_chunk
-                }]
-            }
-        }
-        self.ws_app.send(json.dumps(event))
-
     def process_input(self, audio: tuple):
+        if not self.connected:
+            self.connect_to_openai()
         segment = AudioSegment(
             audio[1].tobytes(),
             frame_rate=audio[0],
@@ -174,6 +165,6 @@ if __name__ == "__main__":
 
         cancel = gr.Button("Stop Conversation", variant="stop")
         cancel.click(stop_conv, [], [input_audio])
-    client.connect_to_openai()
     logging.info(f"Launching")
-    demo.launch()
+    client.connect_to_openai()
+    demo.launch(server_port=8443)
