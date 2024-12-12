@@ -167,4 +167,4 @@ if __name__ == "__main__":
         cancel.click(stop_conv, [], [input_audio])
     logging.info(f"Launching")
     client.connect_to_openai()
-    demo.launch(server_port=8443)
+    demo.launch(share=True)
